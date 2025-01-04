@@ -1,0 +1,10 @@
+[package]
+name = "orbit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.30.0"
+egui = "0.30.0"
+quick-xml = "0.31.0"
+image = "0.24"
