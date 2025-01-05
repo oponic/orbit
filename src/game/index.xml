@@ -2,4 +2,5 @@
     <name>Game</name>
     <description>The game. Don't uninstall it.</description>
     <logo>logo.png</logo>
+    <update>placeholder</update>
 </plugin>

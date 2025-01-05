@@ -8,3 +8,5 @@ eframe = "0.30.0"
 egui = "0.30.0"
 quick-xml = "0.31.0"
 image = "0.24"
+mlua = { version = "0.9", features = ["lua54", "vendored"] }
+rfd = "0.11"

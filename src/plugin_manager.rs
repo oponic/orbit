@@ -1,4 +1,4 @@
-use eframe::egui;
+use eframe::egui; // TODO: actually implement the plugin autoupdate
 use std::path::PathBuf;
 use std::fs;
 use quick_xml::reader::Reader;
@@ -190,7 +190,7 @@ impl PluginManager {
                         self.refresh_plugins();
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("✕").clicked() {
+                        if ui.button("Done").clicked() {
                             self.show = false;
                         }
                     });

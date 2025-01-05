@@ -1,0 +1,6 @@
+<plugin>
+    <name>OrbitUtils</name>
+    <description>Lua library that isn't essential for Orbit to work but also too useful to include in the game.</description>
+    <logo>logo.png</logo>
+    <update>placeholder</update>
+</plugin>

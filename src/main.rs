@@ -3,11 +3,14 @@ use egui::ViewportBuilder;
 use std::path::PathBuf;
 use std::fs;
 use orbit::keyid;
+use mlua::Lua;
+use std::sync::mpsc;
 
 mod popup;
 use popup::PopupMessage;
 mod plugin_manager;
 use plugin_manager::PluginManager;
+mod lua_bindings;
 
 fn main() -> eframe::Result<()> {
     let mut app = OrbitApp::default();
@@ -43,17 +46,33 @@ fn main() -> eframe::Result<()> {
 struct OrbitApp {
     popup: PopupMessage,
     plugin_manager: PluginManager,
+    lua: Lua,
+    lua_error_receiver: mpsc::Receiver<String>,
 }
 impl Default for OrbitApp {
     fn default() -> Self {
+        let lua = Lua::new();
+        let (error_sender, error_receiver) = mpsc::channel();
+        
+        // Create Lua bindings with error sender
+        let exports = lua_bindings::create_lua_module(&lua, error_sender).unwrap();
+        lua.globals().set("orbit_egui", exports).unwrap();
+        
         Self {
             popup: PopupMessage::default(),
             plugin_manager: PluginManager::default(),
+            lua,
+            lua_error_receiver: error_receiver,
         }
     }
 }
 impl eframe::App for OrbitApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Check for Lua errors
+        if let Ok(error) = self.lua_error_receiver.try_recv() {
+            self.popup.show_error(error);
+        }
+
         self.popup.draw(ctx);
         self.plugin_manager.draw(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
