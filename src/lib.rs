@@ -1,21 +1,74 @@
+pub mod popup;
+use popup::PopupMessage;
 use std::fs;
 use std::path::PathBuf;
-use std::io::Write;
 use std::process::Command;
 use quick_xml::reader::Reader;
 use quick_xml::events::Event;
+const PREDEFINED_KEY: &str = "nowthatswhaticallbadDRM";
 
-pub fn keyid() -> Result<String, String> {
+pub fn keyid(popup: &mut PopupMessage) -> Result<String, ()> { // this shouldnt actually really do anything for the user, in all honesty the game is not getting on any stores
     let config_path = std::env::var("CONFIG")
-        .map_err(|e| format!("Failed to get CONFIG environment variable: {}", e))?;
+        .map_err(|e| {
+            popup.show_panic(format!("Failed to get CONFIG environment variable: {}", e));
+            ()
+        })?;
+    
     let mut key_path = PathBuf::from(config_path);
     key_path.push("DRM");
     key_path.push("key.xml");
-    if !key_path.exists() {
-        return Err("Ingenuine copy".to_string()); // TODO: Change this to panic too after DRM stuff is done
+    
+    let xml_content = fs::read_to_string(&key_path)
+        .map_err(|_| {
+            popup.show_panic("Ingenuine copy, is game from Steam?");
+            ()
+        })?;
+    
+    let mut reader = Reader::from_str(&xml_content);
+    reader.trim_text(true);
+    
+    let mut buf = Vec::new();
+    let mut current_element = String::new();
+    let mut platform_key = None;
+    let mut key_value = None;
+    
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(ref e)) => {
+                current_element = String::from_utf8_lossy(e.name().as_ref()).to_string();
+            },
+            Ok(Event::Text(ref e)) => {
+                if current_element == "platform_key" {
+                    platform_key = Some(e.unescape().unwrap_or_default().to_string());
+                } else if current_element == "key" {
+                    key_value = Some(e.unescape().unwrap_or_default().to_string());
+                }
+            },
+            Ok(Event::Eof) => break,
+            Err(_) => return Err(()),
+            _ => {}
+        }
     }
-    // TODO: Implement XML parsing and platform key extraction
-    Ok("".to_string())
+
+    if platform_key.as_deref() == Some("steam") {
+        if let Some(ref key) = key_value {
+            if key != PREDEFINED_KEY {
+                popup.show_panic("Key does not match the predefined value");
+                return Err(());
+            }
+        } else {
+            popup.show_panic("Key not found in XML");
+            return Err(());
+        }
+    }
+
+    match platform_key {
+        Some(key) => Ok(key),
+        None => {
+            popup.show_panic("Ingenuine copy: Missing platform key");
+            Err(())
+        }
+    }
 }
 
 pub fn jumpscare(message: &str, duration_ms: u32) -> Result<(), String> {
@@ -103,8 +156,6 @@ pub fn update_plugins() -> Result<(), String> {
             if !index_path.exists() {
                 continue;
             }
-
-            // Read and parse the index.xml file
             let xml_content = fs::read_to_string(&index_path)
                 .map_err(|e| format!("Failed to read index.xml: {}", e))?;
             
@@ -114,8 +165,6 @@ pub fn update_plugins() -> Result<(), String> {
             let mut buf = Vec::new();
             let mut current_element = String::new();
             let mut update_url = None;
-            
-            // Parse XML to find update URL
             loop {
                 match reader.read_event_into(&mut buf) {
                     Ok(Event::Start(ref e)) => {
@@ -131,48 +180,34 @@ pub fn update_plugins() -> Result<(), String> {
                     _ => {}
                 }
             }
-
-            // If we found an update URL, try to update the plugin
             if let Some(url) = update_url {
-                // Check if there are updates available
                 let status = Command::new("git")
                     .current_dir(&entry.path())
                     .args(["remote", "update"])
                     .output()
                     .map_err(|e| format!("Failed to check for updates: {}", e))?;
-
                 if !status.status.success() {
-                    // If the directory isn't a git repo yet, clone it
                     let plugin_name = entry.path().file_name()
                         .ok_or("Invalid plugin path")?
                         .to_string_lossy()
                         .to_string();
                     
                     let temp_dir = std::env::temp_dir().join(&plugin_name);
-                    
-                    // Clone to temporary directory
                     Command::new("git")
                         .args(["clone", &url, temp_dir.to_str().unwrap()])
                         .output()
                         .map_err(|e| format!("Failed to clone repository: {}", e))?;
-
-                    // Remove old plugin directory
                     fs::remove_dir_all(&entry.path())
                         .map_err(|e| format!("Failed to remove old plugin: {}", e))?;
-
-                    // Move new version to plugins directory
                     fs::rename(&temp_dir, &entry.path())
                         .map_err(|e| format!("Failed to move new plugin version: {}", e))?;
                 } else {
-                    // Check if we need to pull updates
                     let status = Command::new("git")
                         .current_dir(&entry.path())
                         .args(["status", "-uno"])
                         .output()
                         .map_err(|e| format!("Failed to check git status: {}", e))?;
-
                     if !String::from_utf8_lossy(&status.stdout).contains("Your branch is up to date") {
-                        // Pull updates
                         Command::new("git")
                             .current_dir(&entry.path())
                             .args(["pull", "origin", "main"])
@@ -183,6 +218,5 @@ pub fn update_plugins() -> Result<(), String> {
             }
         }
     }
-
     Ok(())
 }

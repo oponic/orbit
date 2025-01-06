@@ -1,0 +1,1 @@
+cp -a ./src/game ~/.config/Orbit/plugins/

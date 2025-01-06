@@ -181,7 +181,7 @@ impl PluginManager {
             return;
         }
         let mut pending_actions: Vec<Action> = Vec::new();
-        egui::Window::new("Plugin Manager")
+        egui::Window::new("Plugins")
             .resizable(true)
             .default_size([600.0, 500.0])
             .show(ctx, |ui| {
@@ -216,7 +216,7 @@ impl PluginManager {
                                                 if ui.button("Cancel").clicked() {
                                                     pending_actions.push(Action::CancelDelete);
                                                 }
-                                                if ui.button(egui::RichText::new("Confirm Delete").color(egui::Color32::RED)).clicked() {
+                                                if ui.button(egui::RichText::new("Deletion is irreversible.").color(egui::Color32::RED)).clicked() {
                                                     pending_actions.push(Action::DeletePlugin(index));
                                                 }
                                             });
