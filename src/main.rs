@@ -41,6 +41,8 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(move |cc| {
             let lua = Lua::new();
+            let config_path = std::env::var("CONFIG").unwrap_or_default();
+            lua.globals().set("CONFIG", config_path).unwrap_or_default();
             let (error_sender, error_receiver) = mpsc::channel();
             
             // Create Lua bindings with context
